@@ -153,7 +153,7 @@ contract StakingContract is IStakingContract, Ownable {
     }
 
     /**
-     * @dev Transfers the amount of tokens to the user account and unregister staking for him
+     * @dev Transfers all staked tokens and rewards to the user account and update staking details for him
      * 
      * Emits an {Unstake} event that indicates the unregistration of staking for user.
      *
@@ -215,5 +215,22 @@ contract StakingContract is IStakingContract, Ownable {
         
         usersInfo[account].rewards = earned(account);
         usersInfo[account].rewardPerTokenPaid = rewardPerTokenStored;
+    }
+
+    /**
+     * @dev Transfers the amount of reward tokens back to the owner.
+     * Can only be called by the current owner.
+     * Without parameters.
+     *
+     * Emits an {WithdrawTokens} event that indicates who and how much withdraw tokens from the contract.
+     */
+    function emergencyWithdraw() external onlyOwner {
+        uint256 totalTokens = IERC20(token).balanceOf(address(this));
+        uint256 amountToWithdraw = totalTokens - totalBalances;
+
+        require(amountToWithdraw > 0, "Vesting: transaction amount is zero");
+
+        token.safeTransfer(msg.sender, amountToWithdraw);
+        emit EmergencyWithdraw(msg.sender, amountToWithdraw);
     }
 }

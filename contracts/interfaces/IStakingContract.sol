@@ -10,7 +10,7 @@ interface IStakingContract {
         uint256 lastTimeStaked;
     }
 
-    event SetRewards(uint256 start, uint256 rewardAmounts, uint256 apy);
+    event SetRewards(uint256 start, uint256 rewardAmounts, uint256 apr);
     event Stake(address indexed from, uint256 amount);
     event Unstake(address indexed to, uint256 amount);
     event EmergencyWithdraw(address indexed to, uint256 amount);

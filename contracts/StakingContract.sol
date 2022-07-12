@@ -61,7 +61,7 @@ import "./interfaces/IStakingContract.sol";
 contract StakingContract is IStakingContract, Ownable {
     using SafeERC20 for IERC20;
 
-    IERC20 public token;
+    IERC20 public immutable token;
 
     uint256 internal constant ONE_HUNDRED_PERCENT = 100 ether;
     uint256 public constant MAX_APR = 10 ether;
@@ -166,19 +166,26 @@ contract StakingContract is IStakingContract, Ownable {
         if (block.timestamp - STAKING_PERIOD <= usersInfo[msg.sender].lastTimeStaked) {  
             usersInfo[msg.sender].rewards = usersInfo[msg.sender].rewards * 60 / 100;   // Pay fee
         }
+
+        require(usersInfo[msg.sender].balance <= totalBalances + totalRewards, "Staking: contract doesn't own enough tokens");
         
-        uint256 amount = usersInfo[msg.sender].balance + usersInfo[msg.sender].rewards;
+        uint256 amountToWithdraw;
 
-        require(amount <= totalBalances + totalRewards, "Staking: contract doesn't own enough tokens");
+        if (usersInfo[msg.sender].rewards <= totalRewards) {
+            amountToWithdraw = usersInfo[msg.sender].balance + usersInfo[msg.sender].rewards;
+            totalRewards -= usersInfo[msg.sender].rewards;  
+        } else {        
+            amountToWithdraw = usersInfo[msg.sender].balance + totalRewards;
+            totalRewards = 0;
+        } 
 
-        totalBalances -= usersInfo[msg.sender].balance;  
-        totalRewards -= usersInfo[msg.sender].rewards;   
+        totalBalances -= usersInfo[msg.sender].balance;        
         usersInfo[msg.sender].balance = 0;
-        usersInfo[msg.sender].rewards = 0;
+        usersInfo[msg.sender].rewards = 0; //IMPROVE
         usersInfo[msg.sender].lastTimeStaked = 0;
 
-        token.safeTransfer(msg.sender, amount);
-        emit Unstake(msg.sender, amount);  
+        token.safeTransfer(msg.sender, amountToWithdraw);
+        emit Unstake(msg.sender, amountToWithdraw);  
     }
 
     /**

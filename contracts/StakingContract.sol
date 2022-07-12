@@ -234,6 +234,7 @@ contract StakingContract is IStakingContract, Ownable {
     function emergencyWithdraw() external onlyOwner {
         uint256 totalTokens = IERC20(token).balanceOf(address(this));
         uint256 amountToWithdraw = totalTokens - totalBalances;
+        totalRewards = 0;
 
         require(amountToWithdraw > 0, "Vesting: transaction amount is zero");
 

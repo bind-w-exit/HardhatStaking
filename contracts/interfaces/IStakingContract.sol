@@ -3,6 +3,13 @@ pragma solidity 0.8.9;
 
 interface IStakingContract {
 
+    struct UserInfo {
+        uint256 balance;
+        uint256 rewards;
+        uint256 rewardPerTokenPaid;
+        uint256 lastTimeStaked;
+    }
+
     event SetRewards(uint256 start, uint256 rewardAmounts, uint256 apy);
     event Stake(address indexed from, uint256 amount);
     event Unstake(address indexed to, uint256 amount);

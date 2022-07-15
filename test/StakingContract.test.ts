@@ -374,6 +374,14 @@ describe("Staking Contract", function () {
                 (await alianToken.balanceOf(stakingContract.address)).should.equal(0);
             });
 
+            it("shouldn't transfer tokens if transaction amount is zero", async () => {
+                let alianToken = await TevaToken.deploy();
+                await expectRevert(
+                    stakingContract.alianTokenWithdraw(alianToken.address),
+                    "Vesting: transaction amount is zero"
+                );
+            });
+
         });
 
     });

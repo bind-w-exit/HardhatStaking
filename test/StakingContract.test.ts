@@ -22,9 +22,9 @@ describe("Staking Contract", function () {
     const COOLDOWN_PERIOD: number = 10 * 24 * 60 * 60;
 
     //test's constants
-    const AMOUNT: BigNumber = BigNumber.from(500_000);
+    const AMOUNT: BigNumber = ethers.utils.parseEther("100000");
     const START_TIME: number = Math.floor(Date.now() / 1000) + 60;
-    const REWARD_AMOUNT: BigNumber = BigNumber.from(500_000);
+    const REWARD_AMOUNT: BigNumber = ethers.utils.parseEther("500000");
     const APR: BigNumber = ethers.utils.parseEther("10.00");
     
     let owner: SignerWithAddress;
@@ -92,45 +92,17 @@ describe("Staking Contract", function () {
 
             before(async function () {
                 await tevaToken.mint(owner.address, REWARD_AMOUNT);
-                await tevaToken.approve(stakingContract.address, REWARD_AMOUNT);
-                await tevaToken.mint(user1.address, AMOUNT);
-                await tevaToken.connect(user1).approve(stakingContract.address, AMOUNT);
-
-                snapshotC = await snapshot();
-            });
-
-            afterEach(async function () {
-                await snapshotC.restore();
+                await tevaToken.approve(stakingContract.address, REWARD_AMOUNT); 
             });
 
             after(async function () {
                 await snapshotB.restore();
             });
 
-            it("should add reward to contract for a specific period", async () => {
-                let receipt = await stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR);      
-                await expect(receipt).to.emit(
-                    stakingContract,
-                    "SetRewards"
-                ).withArgs(
-                    START_TIME,
-                    REWARD_AMOUNT,
-                    APR
-                );
-            });
-
             it("shouldn't add reward to contract from the non-current owner", async () => {
                 await expectRevert(
                     stakingContract.connect(user1).setRewards(START_TIME, REWARD_AMOUNT, APR),
                     "Ownable: caller is not the owner"
-                );
-            });
-
-            it("should't allow to add rewards multiple times", async () => {
-                await stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR); 
-                await expectRevert(
-                    stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR),
-                    "Staking: setRewards can only be called once"
                 );
             });
 
@@ -168,6 +140,25 @@ describe("Staking Contract", function () {
                     "Staking: apr exceeds the limit"
                 );
             });
+
+            it("should add reward to contract for a specific period", async () => {
+                let receipt = await stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR);      
+                await expect(receipt).to.emit(
+                    stakingContract,
+                    "SetRewards"
+                ).withArgs(
+                    START_TIME,
+                    REWARD_AMOUNT,
+                    APR
+                );
+            });
+
+            it("should't allow to add rewards multiple times", async () => {
+                await expectRevert(
+                    stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR),
+                    "Staking: setRewards can only be called once"
+                );
+            });       
         });
 
 
@@ -177,7 +168,7 @@ describe("Staking Contract", function () {
                 await tevaToken.mint(owner.address, REWARD_AMOUNT);
                 await tevaToken.approve(stakingContract.address, REWARD_AMOUNT);             
                 await stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR);
-                await time.increaseTo(START_TIME);
+
 
                 await tevaToken.mint(user1.address, AMOUNT);
                 await tevaToken.connect(user1).approve(stakingContract.address, AMOUNT);
@@ -185,15 +176,20 @@ describe("Staking Contract", function () {
                 snapshotC = await snapshot();
             });
 
-            afterEach(async function () {
-                await snapshotC.restore();
-            });
-
             after(async function () {
                 await snapshotB.restore();
             });
 
+            it("should transfer tokens from the user account if staking has't started", async () => { 
+                await expectRevert(
+                    stakingContract.connect(user1).stake(AMOUNT),
+                    "Staking: staking has't started"
+                );
+            });
+
             it("should transfer tokens from the user account and register staking for him", async () => {  
+                await time.increaseTo(START_TIME);
+
                 let receipt = await stakingContract.connect(user1).stake(AMOUNT);      
                 await expect(receipt).to.emit(
                     stakingContract,
@@ -214,14 +210,14 @@ describe("Staking Contract", function () {
             });
 
             it("shouldn't transfer tokens from the user account if stake cooldown is not over", async () => {
-                await stakingContract.connect(user1).stake(AMOUNT.div(2)); 
                 await expectRevert(
-                    stakingContract.connect(user1).stake(AMOUNT.div(2)),
+                    stakingContract.connect(user1).stake(AMOUNT),
                     "Staking: stake cooldown is not over"
                 );
             });
 
             it("shouldn't transfer tokens from the user account if zero transaction amount", async () => {
+                time.increase(STAKING_PERIOD);
                 await expectRevert(
                     stakingContract.connect(user1).stake(0),
                     "Staking: zero transaction amount"
@@ -229,16 +225,18 @@ describe("Staking Contract", function () {
             });
 
             it("shouldn't transfer tokens from the user account if total staking cap limit exceeded", async () => {
-                let maxStakingCap: BigNumber = await stakingContract.maxStakingCap();
-                await tevaToken.mint(user1.address, maxStakingCap.div(2));
-                await tevaToken.connect(user1).approve(stakingContract.address, maxStakingCap.div(2));
-                await tevaToken.mint(user2.address, maxStakingCap.div(2));
-                await tevaToken.connect(user2).approve(stakingContract.address, maxStakingCap.div(2));
+                let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalances());
+                let amount = maxStakingCap.div(2);
 
-                await stakingContract.connect(user1).stake(maxStakingCap.div(2));
+                await tevaToken.mint(user1.address, amount);
+                await tevaToken.mint(user2.address, amount);
+                await tevaToken.connect(user1).approve(stakingContract.address, amount);
+                await tevaToken.connect(user2).approve(stakingContract.address, amount);
+
+                await stakingContract.connect(user1).stake(amount);
 
                 await expectRevert(
-                    stakingContract.connect(user2).stake(maxStakingCap.div(2).add(1)),
+                    stakingContract.connect(user2).stake(amount.add(1)),
                     "Staking: total staking cap limit exceeded"
                 );
             });
@@ -248,17 +246,6 @@ describe("Staking Contract", function () {
                 await expectRevert(
                     stakingContract.connect(user1).stake(AMOUNT),
                     "Staking: staking hasn't initialized"
-                );
-            });
-
-            it("should transfer tokens from the user account if staking has't started", async () => { 
-                await snapshotB.restore();
-                await tevaToken.mint(owner.address, REWARD_AMOUNT);
-                await tevaToken.approve(stakingContract.address, REWARD_AMOUNT); 
-                await stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR);
-                await expectRevert(
-                    stakingContract.connect(user1).stake(AMOUNT),
-                    "Staking: staking has't started"
                 );
             });
         });
@@ -271,16 +258,6 @@ describe("Staking Contract", function () {
                 await tevaToken.approve(stakingContract.address, REWARD_AMOUNT);
                 await stakingContract.setRewards(START_TIME, REWARD_AMOUNT, APR);
                 await time.increaseTo(START_TIME);
-
-                await tevaToken.mint(user1.address, AMOUNT);
-                await tevaToken.connect(user1).approve(stakingContract.address, AMOUNT);
-                await stakingContract.connect(user1).stake(AMOUNT);
-
-                snapshotC = await snapshot();
-            });
-
-            afterEach(async function () {
-                await snapshotC.restore();
             });
 
             after(async function () {
@@ -288,20 +265,32 @@ describe("Staking Contract", function () {
             });
 
             it("should transfer tokens to the user account and unregister staking for him", async () => {
-                let receipt = await stakingContract.connect(user1).unstake();      
+                await tevaToken.mint(user1.address, AMOUNT);
+                await tevaToken.connect(user1).approve(stakingContract.address, AMOUNT);
+                await stakingContract.connect(user1).stake(AMOUNT);
+
+                let rewardPerTokenPaid= (await stakingContract.usersInfo(user1.address)).rewardPerTokenPaid;
+                let userBalance = (await stakingContract.usersInfo(user1.address)).balance;
+                let userRewards = (await stakingContract.usersInfo(user1.address)).rewards;       
+                
+                let receipt = await stakingContract.connect(user1).unstake();   
+
+                let rewardPerTokenStored= await stakingContract.rewardPerTokenStored();
+                let reward = calculateReward(rewardPerTokenStored, rewardPerTokenPaid, userBalance, userRewards).mul(60).div(100);
+                let result = AMOUNT.add(reward)
+
                 await expect(receipt).to.emit(
                     stakingContract,
                     "Unstake"
                 ).withArgs(
                     user1.address,
-                    AMOUNT
+                    result
                 );
 
-                (await tevaToken.balanceOf(user1.address)).should.equal(AMOUNT);
-                (await tevaToken.balanceOf(stakingContract.address)).should.equal(REWARD_AMOUNT);
+                (await tevaToken.balanceOf(user1.address)).should.equal(result);
+                (await tevaToken.balanceOf(stakingContract.address)).should.equal(REWARD_AMOUNT.sub(reward));
 
-                let userInfo: any = await stakingContract.usersInfo(user1.address);             
-
+                let userInfo = await stakingContract.usersInfo(user1.address);             
                 userInfo.balance.should.equal(0);
                 userInfo.lastTimeStaked.should.equal(0);
             });
@@ -313,40 +302,35 @@ describe("Staking Contract", function () {
                 );
             });
 
-            it("should transfer all staked tokens and 60% rewards if staking period not over", async () => {
-                await time.increase(STAKING_PERIOD / 2);
-
-                let receipt = await stakingContract.connect(user1).unstake();
-                await expect(receipt).to.emit(
-                    stakingContract,
-                    "Unstake"
-                ).withArgs(
-                    user1.address,
-                    AMOUNT.add(AMOUNT.mul(APR).div(ONE_HUNDRED_PERCENT).div(2).mul(60).div(100))
-                );
-            });
-
             it("should transfer all staked tokens and all remaining rewards", async () => {
                 let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalances());
-                let halfStakingCap = maxStakingCap.div(2);
+                let amount = maxStakingCap.div(2);
 
-                await tevaToken.mint(user2.address, halfStakingCap);
-                await tevaToken.connect(user2).approve(stakingContract.address, halfStakingCap);
-                await stakingContract.connect(user2).stake(halfStakingCap);
-
-                await tevaToken.mint(user3.address, halfStakingCap);
-                await tevaToken.connect(user3).approve(stakingContract.address, halfStakingCap);
-                await stakingContract.connect(user3).stake(halfStakingCap);
+                await tevaToken.mint(user2.address, amount);
+                await tevaToken.mint(user3.address, amount);
+                await tevaToken.connect(user2).approve(stakingContract.address, amount);
+                await tevaToken.connect(user3).approve(stakingContract.address, amount);
+                await stakingContract.connect(user2).stake(amount);       
+                await stakingContract.connect(user3).stake(amount);
 
                 await time.increase(STAKING_PERIOD * 2);
+
+                let rewardPerTokenPaid= (await stakingContract.usersInfo(user2.address)).rewardPerTokenPaid;
+                let userBalance = (await stakingContract.usersInfo(user2.address)).balance;
+                let userRewards = (await stakingContract.usersInfo(user2.address)).rewards;  
                 
                 let receipt = await stakingContract.connect(user2).unstake();      
+
+                let rewardPerTokenStored= await stakingContract.rewardPerTokenStored();
+                let reward = calculateReward(rewardPerTokenStored, rewardPerTokenPaid, userBalance, userRewards);
+                let result = amount.add(reward)
+
                 await expect(receipt).to.emit(
                     stakingContract,
                     "Unstake"
                 ).withArgs(
                     user2.address,
-                    halfStakingCap.add(halfStakingCap.mul(APR).div(ONE_HUNDRED_PERCENT).mul(2))
+                    result
                 );
                 
                 let remainingRewards = (await stakingContract.totalRewards());
@@ -357,9 +341,51 @@ describe("Staking Contract", function () {
                     "Unstake"
                 ).withArgs(
                     user3.address,
-                    halfStakingCap.add(remainingRewards)
+                    amount.add(remainingRewards)
                 );
             });
         });
+
+
+        describe("Staking Contract alianTokenWithdraw Method Test Cases 👽", function () {
+
+            it("shouldn't transfer tokens back to the owner if token address equal reward token address", async () => {
+                await expectRevert(
+                    stakingContract.alianTokenWithdraw(tevaToken.address),
+                    "Vesting: Token address equal reward token address"
+                );
+            });
+
+            it("should transfer tokens back to the owner", async () => {
+                let alianToken = await TevaToken.deploy();
+                await alianToken.mint(owner.address, AMOUNT);
+                await alianToken.transfer(stakingContract.address, AMOUNT);
+
+                let receipt = await stakingContract.alianTokenWithdraw(alianToken.address);      
+                await expect(receipt).to.emit(
+                    stakingContract,
+                    "AlianTokenWithdraw"
+                ).withArgs(
+                    owner.address,
+                    AMOUNT
+                );
+
+                (await alianToken.balanceOf(owner.address)).should.equal(AMOUNT);
+                (await alianToken.balanceOf(stakingContract.address)).should.equal(0);
+            });
+
+        });
+
     });
 });
+
+function calculateReward(
+    rewardPerTokenStored: BigNumber,
+    rewardPerTokenPaid: BigNumber,
+    userBalance: BigNumber,
+    userRewards: BigNumber
+    ): BigNumber {
+    return userBalance.mul(
+        rewardPerTokenStored.sub(rewardPerTokenPaid)
+    ).div(ethers.utils.parseEther("1")).add(userRewards)
+}

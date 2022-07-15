@@ -71,8 +71,8 @@ contract StakingContract is IStakingContract, Ownable {
 
     mapping(address => UserInfo) public usersInfo;
 
-    uint256 internal lastUpdateTime;
-    uint256 internal rewardPerTokenStored;
+    uint256 public lastUpdateTime;
+    uint256 public rewardPerTokenStored;
     uint256 public rewardRate;
     uint256 public maxStakingCap;
 
@@ -137,15 +137,18 @@ contract StakingContract is IStakingContract, Ownable {
     function stake(uint256 _amount) external override {
         require(isStakingInitialized, "Staking: staking hasn't initialized");
         require(block.timestamp >= startTime, "Staking: staking has't started");
-        require(usersInfo[msg.sender].lastTimeStaked + COOLDOWN_PERIOD < block.timestamp, "Staking: stake cooldown is not over"); 
-
-        updateReward(msg.sender);
-
+        require(usersInfo[msg.sender].lastTimeStaked + COOLDOWN_PERIOD < block.timestamp, "Staking: stake cooldown is not over");
         require(_amount > 0, "Staking: zero transaction amount");    
         require(totalBalances + _amount <= maxStakingCap, "Staking: total staking cap limit exceeded");
 
+        updateReward(msg.sender);
+
         totalBalances += _amount;
         usersInfo[msg.sender].balance += _amount;  
+
+        if(usersInfo[msg.sender].lastTimeStaked == 0){
+            usersInfo[msg.sender].firstTimeStaked = block.timestamp;
+        }
         usersInfo[msg.sender].lastTimeStaked = block.timestamp;
 
         token.safeTransferFrom(msg.sender, address(this), _amount);
@@ -159,30 +162,31 @@ contract StakingContract is IStakingContract, Ownable {
      *
      */
     function unstake() external override {
-        require(usersInfo[msg.sender].balance > 0, "Staking: you are not staker");
+        UserInfo storage user = usersInfo[msg.sender];
+
+        require(user.balance > 0, "Staking: you are not staker");
 
         updateReward(msg.sender);
 
-        if (block.timestamp - STAKING_PERIOD <= usersInfo[msg.sender].lastTimeStaked) {  
-            usersInfo[msg.sender].rewards = usersInfo[msg.sender].rewards * 60 / 100;   // Pay fee
+        if (block.timestamp - STAKING_PERIOD <= user.firstTimeStaked) {  
+            user.rewards = user.rewards * 60 / 100;   // Pay fee
         }
 
-        require(usersInfo[msg.sender].balance <= totalBalances + totalRewards, "Staking: contract doesn't own enough tokens");
+        require(user.balance <= totalBalances, "Staking: contract doesn't own enough tokens");
         
         uint256 amountToWithdraw;
 
-        if (usersInfo[msg.sender].rewards <= totalRewards) {
-            amountToWithdraw = usersInfo[msg.sender].balance + usersInfo[msg.sender].rewards;
-            totalRewards -= usersInfo[msg.sender].rewards;  
+        if (user.rewards <= totalRewards) {
+            amountToWithdraw = user.balance + user.rewards;
+            totalRewards -= user.rewards;  
         } else {        
-            amountToWithdraw = usersInfo[msg.sender].balance + totalRewards;
+            amountToWithdraw = user.balance + totalRewards;
             totalRewards = 0;
         } 
-
-        totalBalances -= usersInfo[msg.sender].balance;        
-        usersInfo[msg.sender].balance = 0;
-        usersInfo[msg.sender].rewards = 0; //IMPROVE
-        usersInfo[msg.sender].lastTimeStaked = 0;
+     
+        user.balance = 0;
+        user.rewards = 0;
+        user.lastTimeStaked = 0;
 
         token.safeTransfer(msg.sender, amountToWithdraw);
         emit Unstake(msg.sender, amountToWithdraw);  
@@ -229,16 +233,15 @@ contract StakingContract is IStakingContract, Ownable {
      * Can only be called by the current owner.
      * Without parameters.
      *
-     * Emits an {WithdrawTokens} event that indicates who and how much withdraw tokens from the contract.
+     * Emits an {AlianTokenWithdraw} event that indicates who and how much withdraw tokens from the contract.
      */
-    function emergencyWithdraw() external onlyOwner {
-        uint256 totalTokens = IERC20(token).balanceOf(address(this));
-        uint256 amountToWithdraw = totalTokens - totalBalances;
-        totalRewards = 0;
+    function alianTokenWithdraw(address tokenAddress) external onlyOwner {
+        require(tokenAddress != address(token), "Vesting: Token address equal reward token address");
+        uint256 totalTokens = IERC20(tokenAddress).balanceOf(address(this));
 
-        require(amountToWithdraw > 0, "Vesting: transaction amount is zero");
+        require(totalTokens > 0, "Vesting: transaction amount is zero");
 
-        token.safeTransfer(msg.sender, amountToWithdraw);
-        emit EmergencyWithdraw(msg.sender, amountToWithdraw);
+        IERC20(tokenAddress).safeTransfer(msg.sender, totalTokens);
+        emit AlianTokenWithdraw(msg.sender, totalTokens);
     }
 }

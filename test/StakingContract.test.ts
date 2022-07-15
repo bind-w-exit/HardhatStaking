@@ -225,7 +225,7 @@ describe("Staking Contract", function () {
             });
 
             it("shouldn't transfer tokens from the user account if total staking cap limit exceeded", async () => {
-                let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalances());
+                let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalancesForAllTime());
                 let amount = maxStakingCap.div(2);
 
                 await tevaToken.mint(user1.address, amount);
@@ -303,7 +303,7 @@ describe("Staking Contract", function () {
             });
 
             it("should transfer all staked tokens and all remaining rewards", async () => {
-                let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalances());
+                let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalancesForAllTime());
                 let amount = maxStakingCap.div(2);
 
                 await tevaToken.mint(user2.address, amount);

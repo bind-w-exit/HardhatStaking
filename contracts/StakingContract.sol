@@ -76,6 +76,7 @@ contract StakingContract is IStakingContract, Ownable {
     uint256 public rewardRate;
     uint256 public maxStakingCap;
 
+    uint256 public totalBalancesForAllTime;
     uint256 public totalBalances;
     uint256 public totalRewards;
     uint256 public startTime;
@@ -139,10 +140,11 @@ contract StakingContract is IStakingContract, Ownable {
         require(block.timestamp >= startTime, "Staking: staking has't started");
         require(usersInfo[msg.sender].lastTimeStaked + COOLDOWN_PERIOD < block.timestamp, "Staking: stake cooldown is not over");
         require(_amount > 0, "Staking: zero transaction amount");    
-        require(totalBalances + _amount <= maxStakingCap, "Staking: total staking cap limit exceeded");
+        require(totalBalancesForAllTime + _amount <= maxStakingCap, "Staking: total staking cap limit exceeded");
 
         updateReward(msg.sender);
 
+        totalBalancesForAllTime += _amount;
         totalBalances += _amount;
         usersInfo[msg.sender].balance += _amount;  
 
@@ -183,7 +185,9 @@ contract StakingContract is IStakingContract, Ownable {
             amountToWithdraw = user.balance + totalRewards;
             totalRewards = 0;
         } 
-     
+
+        totalBalances -= user.balance;
+
         user.balance = 0;
         user.rewards = 0;
         user.lastTimeStaked = 0;
@@ -197,7 +201,7 @@ contract StakingContract is IStakingContract, Ownable {
      * Without parameters.
      */
     function rewardPerToken() public view returns (uint256) {
-        if (totalBalances == 0) {
+        if (totalBalancesForAllTime == 0) {
             return 0;
         }
         return

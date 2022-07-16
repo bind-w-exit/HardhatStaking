@@ -13,7 +13,7 @@ const {
 require("chai")
     .should();
 
-describe("Vesting Contract", function () {
+describe("TevaToken Contract", function () {
     let owner: SignerWithAddress;
     let user1: SignerWithAddress;
     let user2: SignerWithAddress;

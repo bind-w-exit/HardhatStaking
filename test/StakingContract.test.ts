@@ -224,23 +224,6 @@ describe("Staking Contract", function () {
                 );
             });
 
-            it("shouldn't transfer tokens from the user account if total staking cap limit exceeded", async () => {
-                let maxStakingCap: BigNumber = (await stakingContract.maxStakingCap()).sub(await stakingContract.totalBalancesForAllTime());
-                let amount = maxStakingCap.div(2);
-
-                await tevaToken.mint(user1.address, amount);
-                await tevaToken.mint(user2.address, amount);
-                await tevaToken.connect(user1).approve(stakingContract.address, amount);
-                await tevaToken.connect(user2).approve(stakingContract.address, amount);
-
-                await stakingContract.connect(user1).stake(amount);
-
-                await expectRevert(
-                    stakingContract.connect(user2).stake(amount.add(1)),
-                    "Staking: total staking cap limit exceeded"
-                );
-            });
-
             it("should transfer tokens from the user account if staking hasn't initialized", async () => { 
                 await snapshotB.restore();
                 await expectRevert(

@@ -63,7 +63,7 @@ contract StakingContract is IStakingContract, Ownable {
 
     IERC20 public immutable token;
 
-    uint256 internal constant ONE_HUNDRED_PERCENT = 100 ether;
+    uint256 public constant ONE_HUNDRED_PERCENT = 100 ether;
     uint256 public constant MAX_APR = 10 ether;
     uint256 public constant MAX_REWARD_CAP = 500_000 ether;
     uint32 public constant STAKING_PERIOD = 365 days;
@@ -140,9 +140,8 @@ contract StakingContract is IStakingContract, Ownable {
         require(block.timestamp >= startTime, "Staking: staking has't started");
         require(usersInfo[msg.sender].lastTimeStaked + COOLDOWN_PERIOD < block.timestamp, "Staking: stake cooldown is not over");
         require(_amount > 0, "Staking: zero transaction amount");    
-        require(totalBalancesForAllTime + _amount <= maxStakingCap, "Staking: total staking cap limit exceeded");
 
-        updateReward(msg.sender);
+        _updateReward(msg.sender);
 
         totalBalancesForAllTime += _amount;
         totalBalances += _amount;
@@ -168,7 +167,7 @@ contract StakingContract is IStakingContract, Ownable {
 
         require(user.balance > 0, "Staking: you are not staker");
 
-        updateReward(msg.sender);
+        _updateReward(msg.sender);
 
         if (block.timestamp - STAKING_PERIOD <= user.firstTimeStaked) {  
             user.rewards = user.rewards * 60 / 100;   // Pay fee
@@ -194,6 +193,23 @@ contract StakingContract is IStakingContract, Ownable {
 
         token.safeTransfer(msg.sender, amountToWithdraw);
         emit Unstake(msg.sender, amountToWithdraw);  
+    }
+
+    /**
+     * @dev Transfers the amount of reward tokens back to the owner.
+     * Can only be called by the current owner.
+     * Without parameters.
+     *
+     * Emits an {AlianTokenWithdraw} event that indicates who and how much withdraw tokens from the contract.
+     */
+    function alianTokenWithdraw(address tokenAddress) external onlyOwner {
+        require(tokenAddress != address(token), "Vesting: Token address equal reward token address");
+        uint256 totalTokens = IERC20(tokenAddress).balanceOf(address(this));
+
+        require(totalTokens > 0, "Vesting: transaction amount is zero");
+
+        IERC20(tokenAddress).safeTransfer(msg.sender, totalTokens);
+        emit AlianTokenWithdraw(msg.sender, totalTokens);
     }
 
     /**
@@ -224,28 +240,11 @@ contract StakingContract is IStakingContract, Ownable {
      * @dev Updates the "rewardPerTokenStored" variable and reward for the user
      * @param account User address
      */
-    function updateReward(address account) internal {
+    function _updateReward(address account) internal {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = block.timestamp;
         
         usersInfo[account].rewards = earned(account);
         usersInfo[account].rewardPerTokenPaid = rewardPerTokenStored;
-    }
-
-    /**
-     * @dev Transfers the amount of reward tokens back to the owner.
-     * Can only be called by the current owner.
-     * Without parameters.
-     *
-     * Emits an {AlianTokenWithdraw} event that indicates who and how much withdraw tokens from the contract.
-     */
-    function alianTokenWithdraw(address tokenAddress) external onlyOwner {
-        require(tokenAddress != address(token), "Vesting: Token address equal reward token address");
-        uint256 totalTokens = IERC20(tokenAddress).balanceOf(address(this));
-
-        require(totalTokens > 0, "Vesting: transaction amount is zero");
-
-        IERC20(tokenAddress).safeTransfer(msg.sender, totalTokens);
-        emit AlianTokenWithdraw(msg.sender, totalTokens);
     }
 }

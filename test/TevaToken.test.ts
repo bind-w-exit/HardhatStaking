@@ -26,7 +26,7 @@ describe("TevaToken Contract", function () {
     const NAME = "Teva token";
     const SYMBOL = "TEVA";
     const DECIMALS = BigNumber.from(18);
-    const AMOUNT = BigNumber.from(100000);
+    const AMOUNT = BigNumber.from("839182361783012371982370197");
     const ZERO_AMOUNT = BigNumber.from(0);
 
     before(async function () {
@@ -169,14 +169,14 @@ describe("TevaToken Contract", function () {
                 await tevaToken.approve(user1.address, AMOUNT);
                 (await tevaToken.allowance(owner.address, user1.address)).should.be.equal(AMOUNT);
                 let receipt = await tevaToken.increaseAllowance(user1.address, AMOUNT);
-                (await tevaToken.allowance(owner.address, user1.address)).should.be.equal(BigNumber.from(Number(AMOUNT) * 2));
+                (await tevaToken.allowance(owner.address, user1.address)).should.be.equal(AMOUNT.mul(2));
                 await expect(receipt).to.emit(
                     tevaToken,
                     "Approval"
                 ).withArgs(
                     owner.address,
                     user1.address,        
-                    BigNumber.from(Number(AMOUNT) * 2)
+                    AMOUNT.mul(2)
                 );
             });
 

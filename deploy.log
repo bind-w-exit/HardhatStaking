@@ -1,29 +1,33 @@
-PS C:\Users\12And\Desktop\solidity\HardhatStaking> npx hardhat run scripts/deploy.ts --network ropsten_infura
-Generating typings for: 1 artifacts in dir: typechain for target: ethers-v5
-Successfully generated 5 typings!
-Compiled 1 Solidity file successfully
-TEVA Token deployed to: 0x41631829259a63b0D10275485488D676b63B91A1
-Staking Contract deployed to: 0xA03B2d54B142073dfc21255e8623d08AF84b3118
+▶️🛠️ V1
+    PS C:\Users\12And\Desktop\solidity\HardhatStaking> npx hardhat run scripts/deploy.ts --network ropsten_infura
+    Generating typings for: 1 artifacts in dir: typechain for target: ethers-v5
+    Successfully generated 5 typings!
+    Compiled 1 Solidity file successfully
+    TEVA Token deployed to: 0x41631829259a63b0D10275485488D676b63B91A1
+    Staking Contract deployed to: 0xA03B2d54B142073dfc21255e8623d08AF84b3118
+▶️
+    PS C:\Users\12And\Desktop\solidity\HardhatStaking> npx hardhat verify --network ropsten_infura 0xA03B2d54B142073dfc21255e8623d08AF84b3118 "0x41631829259a63b0D10275485488D676b63B91A1"
+    Nothing to compile
+    No need to generate any newer typings.
+    Successfully submitted source code for contract
+    contracts/StakingContract.sol:StakingContract at 0xA03B2d54B142073dfc21255e8623d08AF84b3118
+    for verification on the block explorer. Waiting for verification result...
 
+    Successfully verified contract StakingContract on Etherscan.
+    https://ropsten.etherscan.io/address/0xA03B2d54B142073dfc21255e8623d08AF84b3118#code
+▶️
+    PS C:\Users\12And\Desktop\solidity\HardhatStaking> npx hardhat verify --network ropsten_infura 0x41631829259a63b0D10275485488D676b63B91A1
+    Nothing to compile
+    No need to generate any newer typings.
+    Successfully submitted source code for contract
+    contracts/TevaToken.sol:TevaToken at 0x41631829259a63b0D10275485488D676b63B91A1
+    for verification on the block explorer. Waiting for verification result...
 
-PS C:\Users\12And\Desktop\solidity\HardhatStaking> npx hardhat verify --network ropsten_infura 0xA03B2d54B142073dfc21255e8623d08AF84b3118 "0x41631829259a63b0D10275485488D676b63B91A1"
-Nothing to compile
-No need to generate any newer typings.
-Successfully submitted source code for contract
-contracts/StakingContract.sol:StakingContract at 0xA03B2d54B142073dfc21255e8623d08AF84b3118
-for verification on the block explorer. Waiting for verification result...
+    Error in plugin @nomiclabs/hardhat-etherscan: The Etherscan API responded with a failure status.
+    The verification may still succeed but should be checked manually.
+    Reason: Already Verified
+▶️🛠️ V2
+    Staking: 
+	TEVA Token deployed to: https://ropsten.etherscan.io/address/0x41631829259a63b0D10275485488D676b63B91A1
+	Staking Contract deployed to: https://ropsten.etherscan.io/address/0xA03B2d54B142073dfc21255e8623d08AF84b3118
 
-Successfully verified contract StakingContract on Etherscan.
-https://ropsten.etherscan.io/address/0xA03B2d54B142073dfc21255e8623d08AF84b3118#code
-
-
-PS C:\Users\12And\Desktop\solidity\HardhatStaking> npx hardhat verify --network ropsten_infura 0x41631829259a63b0D10275485488D676b63B91A1
-Nothing to compile
-No need to generate any newer typings.
-Successfully submitted source code for contract
-contracts/TevaToken.sol:TevaToken at 0x41631829259a63b0D10275485488D676b63B91A1
-for verification on the block explorer. Waiting for verification result...
-
-Error in plugin @nomiclabs/hardhat-etherscan: The Etherscan API responded with a failure status.
-The verification may still succeed but should be checked manually.
-Reason: Already Verified
